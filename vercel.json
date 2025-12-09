@@ -54,11 +54,5 @@
       "src": "/(.*)",
       "dest": "/api/index.ts"
     }
-  ],
-  "env": {
-    "GOOGLE_CLIENT_ID": "@google_client_id",
-    "GOOGLE_CLIENT_SECRET": "@google_client_secret",
-    "COOKIE_ENCRYPTION_KEY": "@cookie_encryption_key",
-    "JWT_SECRET": "@jwt_secret"
-  }
+  ]
 }
