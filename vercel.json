@@ -2,7 +2,7 @@
   "version": 2,
   "outputDirectory": "public",
   "functions": {
-    "api/index.ts": {
+    "api/index.js": {
       "maxDuration": 30
     }
   },
