@@ -296,19 +296,21 @@ async function handleMcpRequest(body: any, accessToken: string): Promise<any> {
 
 // Main API handler
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS preflight
-  if (req.method === 'OPTIONS') {
-    Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v));
-    return res.status(200).end();
-  }
-  
-  Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v));
-  
-  const baseUrl = getBaseUrl(req);
-  const url = new URL(req.url || '/', baseUrl);
-  const path = url.searchParams.get('path') || url.pathname.replace(/^\/api\/?/, '') || '';
-  
   try {
+    // CORS preflight
+    if (req.method === 'OPTIONS') {
+      Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v));
+      return res.status(200).end();
+    }
+    
+    Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v));
+    
+    const baseUrl = getBaseUrl(req);
+    const url = new URL(req.url || '/', baseUrl);
+    const path = url.searchParams.get('path') || url.pathname.replace(/^\/api\/?/, '') || '';
+    
+    console.log('Request path:', path, 'URL:', req.url);
+    
     switch (path) {
       case '':
       case '/':
