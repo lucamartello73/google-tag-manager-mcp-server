@@ -1,59 +1,20 @@
 {
   "version": 2,
-  "installCommand": "npm install --legacy-peer-deps --ignore-scripts",
-  "buildCommand": "",
-  "outputDirectory": "",
-  "framework": null,
   "functions": {
     "api/index.ts": {
-      "maxDuration": 30,
-      "runtime": "@vercel/node@3.0.0"
+      "maxDuration": 30
     }
   },
-  "routes": [
-    {
-      "src": "/sse",
-      "dest": "/api/index.ts?path=sse"
-    },
-    {
-      "src": "/mcp",
-      "dest": "/api/index.ts?path=mcp"
-    },
-    {
-      "src": "/authorize",
-      "dest": "/api/index.ts?path=authorize"
-    },
-    {
-      "src": "/callback",
-      "dest": "/api/index.ts?path=callback"
-    },
-    {
-      "src": "/token",
-      "dest": "/api/index.ts?path=token"
-    },
-    {
-      "src": "/register",
-      "dest": "/api/index.ts?path=register"
-    },
-    {
-      "src": "/privacy",
-      "dest": "/api/index.ts?path=privacy"
-    },
-    {
-      "src": "/terms",
-      "dest": "/api/index.ts?path=terms"
-    },
-    {
-      "src": "/remove",
-      "dest": "/api/index.ts?path=remove"
-    },
-    {
-      "src": "/api/?(.*)",
-      "dest": "/api/index.ts"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.ts"
-    }
+  "rewrites": [
+    { "source": "/sse", "destination": "/api?path=sse" },
+    { "source": "/mcp", "destination": "/api?path=mcp" },
+    { "source": "/authorize", "destination": "/api?path=authorize" },
+    { "source": "/callback", "destination": "/api?path=callback" },
+    { "source": "/token", "destination": "/api?path=token" },
+    { "source": "/register", "destination": "/api?path=register" },
+    { "source": "/privacy", "destination": "/api?path=privacy" },
+    { "source": "/terms", "destination": "/api?path=terms" },
+    { "source": "/remove", "destination": "/api?path=remove" },
+    { "source": "/:path*", "destination": "/api" }
   ]
 }
