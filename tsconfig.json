@@ -4,18 +4,19 @@
     "module": "ES2022",
     "moduleResolution": "Bundler",
     "outDir": "./dist",
-    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "types": ["node"]
   },
   "include": [
+    "api/**/*",
     "src/**/*",
-    "worker-configuration.d.ts",
     "global.d.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "lib"
   ]
 }
