@@ -42,3 +42,4 @@ You can run rm -rf ~/.mcp-auth to clear any locally stored state and tokens.
 rm -rf ~/.mcp-auth
 ```
 Then restarting your MCP client.
+# Deploy trigger Tue Dec  9 19:10:02 UTC 2025
