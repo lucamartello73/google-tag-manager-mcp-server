@@ -1,6 +1,6 @@
 {
   "name": "google-tag-manager-mcp-server",
-  "version": "3.0.5",
+  "version": "3.0.6",
   "description": "MCP server for Google Tag Manager - Vercel compatible",
   "license": "Apache-2.0",
   "author": "stape-io",
@@ -18,16 +18,13 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "build:vercel": "tsc -p tsconfig.vercel.json",
-    "postinstall": "npm run build:vercel || true",
+    "build:vercel": "echo 'Vercel build - using api directory'",
     "lint": "eslint --ext .ts src",
     "lint:fix": "eslint --ext .ts src --fix",
-    "prepublish": "npm run build",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
     "start": "wrangler dev",
-    "cf-typegen": "wrangler types --include-env=false",
-    "vercel-build": "npm run build:vercel"
+    "cf-typegen": "wrangler types --include-env=false"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.18.1",
