@@ -17,8 +17,8 @@
     "vercel"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "build:vercel": "echo 'Vercel build - using api directory'",
+    "build": "echo 'Skipping build - api functions are compiled at runtime'",
+    "build:cloudflare": "tsc -p tsconfig.json",
     "lint": "eslint --ext .ts src",
     "lint:fix": "eslint --ext .ts src --fix",
     "deploy": "wrangler deploy",
