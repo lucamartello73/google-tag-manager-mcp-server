@@ -3,10 +3,8 @@
  * Minimal implementation for testing
  */
 
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-
 // CORS headers
-const corsHeaders = {
+const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
@@ -51,24 +49,6 @@ function renderMainPage(): string {
     </div>
     
     <div class="endpoint">
-      <h3><span class="method post">POST</span> Token Exchange</h3>
-      <code>/token</code>
-      <p>Exchange authorization code for access token.</p>
-    </div>
-    
-    <div class="endpoint">
-      <h3><span class="method post">POST</span> Client Registration</h3>
-      <code>/register</code>
-      <p>Dynamic OAuth client registration.</p>
-    </div>
-    
-    <div class="endpoint">
-      <h3><span class="method get">GET</span> SSE Endpoint</h3>
-      <code>/sse</code>
-      <p>Server-Sent Events for real-time MCP communication.</p>
-    </div>
-    
-    <div class="endpoint">
       <h3><span class="method post">POST</span> MCP Endpoint</h3>
       <code>/mcp</code>
       <p>HTTP endpoint for MCP JSON-RPC requests.</p>
@@ -78,7 +58,6 @@ function renderMainPage(): string {
     <p><a href="https://github.com/stape-io/google-tag-manager-mcp-server" target="_blank">GitHub Repository</a> | <a href="https://modelcontextprotocol.io" target="_blank">MCP Protocol</a></p>
     
     <footer>
-      <a href="/privacy">Privacy Policy</a> | <a href="/terms">Terms of Service</a> | 
       Powered by <a href="https://stape.io" target="_blank">Stape</a>
     </footer>
   </div>
@@ -86,31 +65,8 @@ function renderMainPage(): string {
 </html>`;
 }
 
-function renderPrivacyPage(): string {
-  return `<!DOCTYPE html>
-<html><head><title>Privacy Policy</title><style>body{font-family:sans-serif;max-width:800px;margin:0 auto;padding:2rem;}</style></head>
-<body>
-<h1>Privacy Policy</h1>
-<p>This MCP server processes Google Tag Manager data on behalf of authorized users.</p>
-<p>We only access the data necessary to perform the requested operations.</p>
-<p>No data is stored permanently beyond the session.</p>
-<p><a href="/">Back to Home</a></p>
-</body></html>`;
-}
-
-function renderTermsPage(): string {
-  return `<!DOCTYPE html>
-<html><head><title>Terms of Service</title><style>body{font-family:sans-serif;max-width:800px;margin:0 auto;padding:2rem;}</style></head>
-<body>
-<h1>Terms of Service</h1>
-<p>By using this MCP server, you agree to use it responsibly and in accordance with Google's Terms of Service.</p>
-<p>This server is provided as-is without warranty.</p>
-<p><a href="/">Back to Home</a></p>
-</body></html>`;
-}
-
-// Main API handler
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+// Main API handler - using any types to avoid import issues
+export default async function handler(req: any, res: any) {
   try {
     // CORS preflight
     if (req.method === 'OPTIONS') {
@@ -120,42 +76,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v));
     
-    // Get path from query parameter or URL
-    const path = (req.query.path as string) || '';
-    
-    console.log('Request method:', req.method, 'path:', path, 'url:', req.url);
+    // Get path from query parameter
+    const path = (req.query?.path as string) || '';
     
     switch (path) {
       case '':
       case '/':
         return res.setHeader('Content-Type', 'text/html').status(200).send(renderMainPage());
       
-      case 'privacy':
-        return res.setHeader('Content-Type', 'text/html').status(200).send(renderPrivacyPage());
-      
-      case 'terms':
-        return res.setHeader('Content-Type', 'text/html').status(200).send(renderTermsPage());
-      
       case 'authorize':
         return res.status(200).json({ 
           message: 'OAuth authorization endpoint',
           note: 'Provide client_id, redirect_uri, and state parameters'
         });
-      
-      case 'callback':
-        return res.status(200).json({ message: 'OAuth callback endpoint' });
-      
-      case 'token':
-        if (req.method !== 'POST') {
-          return res.status(405).json({ error: 'Method not allowed' });
-        }
-        return res.status(200).json({ message: 'Token exchange endpoint' });
-      
-      case 'register':
-        if (req.method !== 'POST') {
-          return res.status(405).json({ error: 'Method not allowed' });
-        }
-        return res.status(201).json({ message: 'Client registration endpoint' });
       
       case 'mcp':
         if (req.method !== 'POST') {
@@ -169,17 +102,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
               name: 'google-tag-manager-mcp-server',
               version: '3.0.7',
             },
-            capabilities: {
-              tools: {},
-            },
+            capabilities: { tools: {} },
           },
           id: null
-        });
-      
-      case 'sse':
-        return res.status(200).json({ 
-          message: 'SSE endpoint - Use /mcp for HTTP transport instead',
-          note: 'Vercel serverless functions have timeout limits that make SSE impractical'
         });
       
       default:
@@ -189,8 +114,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.error('API Error:', error);
     return res.status(500).json({ 
       error: 'Internal server error', 
-      message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: error?.message || 'Unknown error'
     });
   }
 }
