@@ -1,36 +1,9 @@
 /**
  * Main API handler for Vercel serverless deployment
- * Standalone implementation without MCP SDK dependencies
+ * Minimal implementation for testing
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { google } from 'googleapis';
-import { randomBytes, createHash } from 'crypto';
-
-// In-memory storage (for demo - use Vercel KV in production)
-const memoryStore = new Map<string, { value: string; expiry?: number }>();
-
-// Storage functions
-async function storageGet(key: string): Promise<string | null> {
-  const item = memoryStore.get(key);
-  if (!item) return null;
-  if (item.expiry && Date.now() > item.expiry) {
-    memoryStore.delete(key);
-    return null;
-  }
-  return item.value;
-}
-
-async function storageSet(key: string, value: string, ttl?: number): Promise<void> {
-  const item: { value: string; expiry?: number } = { value };
-  if (ttl) item.expiry = Date.now() + (ttl * 1000);
-  memoryStore.set(key, item);
-}
-
-// Generate secure random strings
-function generateCode(length: number = 32): string {
-  return randomBytes(length).toString('base64url');
-}
 
 // CORS headers
 const corsHeaders = {
@@ -38,26 +11,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
-
-// Get base URL
-function getBaseUrl(req: VercelRequest): string {
-  const host = req.headers.host || process.env.VERCEL_URL || 'localhost:3000';
-  const protocol = host.includes('localhost') ? 'http' : 'https';
-  return `${protocol}://${host}`;
-}
-
-// Google OAuth scopes
-const GOOGLE_SCOPES = [
-  'email',
-  'profile',
-  'https://www.googleapis.com/auth/tagmanager.manage.accounts',
-  'https://www.googleapis.com/auth/tagmanager.edit.containers',
-  'https://www.googleapis.com/auth/tagmanager.delete.containers',
-  'https://www.googleapis.com/auth/tagmanager.edit.containerversions',
-  'https://www.googleapis.com/auth/tagmanager.manage.users',
-  'https://www.googleapis.com/auth/tagmanager.publish',
-  'https://www.googleapis.com/auth/tagmanager.readonly',
-];
 
 // Main HTML page
 function renderMainPage(): string {
@@ -87,7 +40,7 @@ function renderMainPage(): string {
 <body>
   <div class="container">
     <h1>Google Tag Manager MCP Server</h1>
-    <p class="subtitle">Model Context Protocol server for Google Tag Manager integration <span class="status">v3.0.6</span></p>
+    <p class="subtitle">Model Context Protocol server for Google Tag Manager integration <span class="status">v3.0.7</span></p>
     
     <h2>API Endpoints</h2>
     
@@ -156,144 +109,6 @@ function renderTermsPage(): string {
 </body></html>`;
 }
 
-// Google OAuth helpers
-function getGoogleAuthUrl(baseUrl: string, state: string): string {
-  const url = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-  url.searchParams.set('client_id', process.env.GOOGLE_CLIENT_ID || '');
-  url.searchParams.set('redirect_uri', `${baseUrl}/callback`);
-  url.searchParams.set('response_type', 'code');
-  url.searchParams.set('scope', GOOGLE_SCOPES.join(' '));
-  url.searchParams.set('state', state);
-  url.searchParams.set('access_type', 'offline');
-  url.searchParams.set('prompt', 'consent');
-  if (process.env.HOSTED_DOMAIN) {
-    url.searchParams.set('hd', process.env.HOSTED_DOMAIN);
-  }
-  return url.toString();
-}
-
-async function exchangeGoogleCode(code: string, redirectUri: string): Promise<string | null> {
-  const response = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID || '',
-      client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-      code,
-      redirect_uri: redirectUri,
-      grant_type: 'authorization_code',
-    }),
-  });
-  
-  if (!response.ok) return null;
-  const data = await response.json() as { access_token: string };
-  return data.access_token;
-}
-
-// Extract token from request
-function extractToken(req: VercelRequest): string | null {
-  const auth = req.headers.authorization;
-  if (auth?.startsWith('Bearer ')) return auth.substring(7);
-  return null;
-}
-
-// Simple MCP response helpers
-function mcpError(id: string | number | null, code: number, message: string) {
-  return { jsonrpc: '2.0', error: { code, message }, id };
-}
-
-function mcpResult(id: string | number | null, result: unknown) {
-  return { jsonrpc: '2.0', result, id };
-}
-
-// GTM API helpers
-function createTagManagerClient(accessToken: string) {
-  const auth = new google.auth.OAuth2();
-  auth.setCredentials({ access_token: accessToken });
-  return google.tagmanager({ version: 'v2', auth });
-}
-
-// MCP Tools implementation
-async function handleMcpRequest(body: any, accessToken: string): Promise<any> {
-  const { method, params, id } = body;
-  
-  const tagmanager = createTagManagerClient(accessToken);
-  
-  try {
-    switch (method) {
-      case 'initialize':
-        return mcpResult(id, {
-          protocolVersion: '2024-11-05',
-          serverInfo: {
-            name: 'google-tag-manager-mcp-server',
-            version: '3.0.6',
-          },
-          capabilities: {
-            tools: {},
-          },
-        });
-      
-      case 'tools/list':
-        return mcpResult(id, {
-          tools: [
-            { name: 'gtm_list_accounts', description: 'List all GTM accounts', inputSchema: { type: 'object', properties: {} } },
-            { name: 'gtm_list_containers', description: 'List containers in an account', inputSchema: { type: 'object', properties: { accountId: { type: 'string' } }, required: ['accountId'] } },
-            { name: 'gtm_list_workspaces', description: 'List workspaces in a container', inputSchema: { type: 'object', properties: { accountId: { type: 'string' }, containerId: { type: 'string' } }, required: ['accountId', 'containerId'] } },
-            { name: 'gtm_list_tags', description: 'List tags in a workspace', inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } },
-            { name: 'gtm_list_triggers', description: 'List triggers in a workspace', inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } },
-            { name: 'gtm_list_variables', description: 'List variables in a workspace', inputSchema: { type: 'object', properties: { path: { type: 'string' } }, required: ['path'] } },
-          ],
-        });
-      
-      case 'tools/call':
-        const toolName = params?.name;
-        const toolArgs = params?.arguments || {};
-        
-        switch (toolName) {
-          case 'gtm_list_accounts': {
-            const res = await tagmanager.accounts.list();
-            return mcpResult(id, { content: [{ type: 'text', text: JSON.stringify(res.data.account || [], null, 2) }] });
-          }
-          
-          case 'gtm_list_containers': {
-            const res = await tagmanager.accounts.containers.list({ parent: `accounts/${toolArgs.accountId}` });
-            return mcpResult(id, { content: [{ type: 'text', text: JSON.stringify(res.data.container || [], null, 2) }] });
-          }
-          
-          case 'gtm_list_workspaces': {
-            const res = await tagmanager.accounts.containers.workspaces.list({ 
-              parent: `accounts/${toolArgs.accountId}/containers/${toolArgs.containerId}` 
-            });
-            return mcpResult(id, { content: [{ type: 'text', text: JSON.stringify(res.data.workspace || [], null, 2) }] });
-          }
-          
-          case 'gtm_list_tags': {
-            const res = await tagmanager.accounts.containers.workspaces.tags.list({ parent: toolArgs.path });
-            return mcpResult(id, { content: [{ type: 'text', text: JSON.stringify(res.data.tag || [], null, 2) }] });
-          }
-          
-          case 'gtm_list_triggers': {
-            const res = await tagmanager.accounts.containers.workspaces.triggers.list({ parent: toolArgs.path });
-            return mcpResult(id, { content: [{ type: 'text', text: JSON.stringify(res.data.trigger || [], null, 2) }] });
-          }
-          
-          case 'gtm_list_variables': {
-            const res = await tagmanager.accounts.containers.workspaces.variables.list({ parent: toolArgs.path });
-            return mcpResult(id, { content: [{ type: 'text', text: JSON.stringify(res.data.variable || [], null, 2) }] });
-          }
-          
-          default:
-            return mcpError(id, -32601, `Unknown tool: ${toolName}`);
-        }
-      
-      default:
-        return mcpError(id, -32601, `Method not found: ${method}`);
-    }
-  } catch (error: any) {
-    return mcpError(id, -32603, error.message || 'Internal error');
-  }
-}
-
 // Main API handler
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
@@ -305,11 +120,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     
     Object.entries(corsHeaders).forEach(([k, v]) => res.setHeader(k, v));
     
-    const baseUrl = getBaseUrl(req);
-    const url = new URL(req.url || '/', baseUrl);
-    const path = url.searchParams.get('path') || url.pathname.replace(/^\/api\/?/, '') || '';
+    // Get path from query parameter or URL
+    const path = (req.query.path as string) || '';
     
-    console.log('Request path:', path, 'URL:', req.url);
+    console.log('Request method:', req.method, 'path:', path, 'url:', req.url);
     
     switch (path) {
       case '':
@@ -322,150 +136,61 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       case 'terms':
         return res.setHeader('Content-Type', 'text/html').status(200).send(renderTermsPage());
       
-      case 'authorize': {
-        const clientId = url.searchParams.get('client_id') || '';
-        const redirectUri = url.searchParams.get('redirect_uri') || '';
-        const state = url.searchParams.get('state') || '';
-        
-        if (!clientId || !redirectUri) {
-          return res.status(400).json({ error: 'Missing client_id or redirect_uri' });
-        }
-        
-        const authState = generateCode(16);
-        await storageSet(`auth:${authState}`, JSON.stringify({ clientId, redirectUri, state }), 600);
-        
-        return res.redirect(302, getGoogleAuthUrl(baseUrl, authState));
-      }
-      
-      case 'callback': {
-        const code = url.searchParams.get('code');
-        const state = url.searchParams.get('state');
-        
-        if (!code || !state) {
-          return res.status(400).json({ error: 'Missing code or state' });
-        }
-        
-        const stateData = await storageGet(`auth:${state}`);
-        if (!stateData) {
-          return res.status(400).json({ error: 'Invalid state' });
-        }
-        
-        const { clientId, redirectUri, state: originalState } = JSON.parse(stateData);
-        
-        const accessToken = await exchangeGoogleCode(code, `${baseUrl}/callback`);
-        if (!accessToken) {
-          return res.status(400).json({ error: 'Failed to exchange code' });
-        }
-        
-        // Get user info
-        const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-          headers: { Authorization: `Bearer ${accessToken}` },
+      case 'authorize':
+        return res.status(200).json({ 
+          message: 'OAuth authorization endpoint',
+          note: 'Provide client_id, redirect_uri, and state parameters'
         });
-        const user = await userRes.json() as { id: string; name: string; email: string };
-        
-        // Generate our own token
-        const ourToken = generateCode(32);
-        await storageSet(`token:${ourToken}`, JSON.stringify({ 
-          accessToken, 
-          userId: user.id, 
-          name: user.name, 
-          email: user.email,
-          clientId 
-        }), 3600);
-        
-        // Generate auth code for client
-        const authCode = generateCode(32);
-        await storageSet(`code:${authCode}`, JSON.stringify({ token: ourToken, clientId }), 300);
-        
-        const redirect = new URL(redirectUri);
-        redirect.searchParams.set('code', authCode);
-        if (originalState) redirect.searchParams.set('state', originalState);
-        
-        return res.redirect(302, redirect.toString());
-      }
       
-      case 'token': {
+      case 'callback':
+        return res.status(200).json({ message: 'OAuth callback endpoint' });
+      
+      case 'token':
         if (req.method !== 'POST') {
           return res.status(405).json({ error: 'Method not allowed' });
         }
-        
-        const { grant_type, code, client_id } = req.body || {};
-        
-        if (grant_type !== 'authorization_code' || !code) {
-          return res.status(400).json({ error: 'invalid_request' });
+        return res.status(200).json({ message: 'Token exchange endpoint' });
+      
+      case 'register':
+        if (req.method !== 'POST') {
+          return res.status(405).json({ error: 'Method not allowed' });
         }
-        
-        const codeData = await storageGet(`code:${code}`);
-        if (!codeData) {
-          return res.status(400).json({ error: 'invalid_grant' });
+        return res.status(201).json({ message: 'Client registration endpoint' });
+      
+      case 'mcp':
+        if (req.method !== 'POST') {
+          return res.status(405).json({ error: 'Method not allowed' });
         }
-        
-        const { token } = JSON.parse(codeData);
-        
-        return res.json({
-          access_token: token,
-          token_type: 'Bearer',
-          expires_in: 3600,
+        return res.status(200).json({
+          jsonrpc: '2.0',
+          result: {
+            protocolVersion: '2024-11-05',
+            serverInfo: {
+              name: 'google-tag-manager-mcp-server',
+              version: '3.0.7',
+            },
+            capabilities: {
+              tools: {},
+            },
+          },
+          id: null
         });
-      }
       
-      case 'register': {
-        if (req.method !== 'POST') {
-          return res.status(405).json({ error: 'Method not allowed' });
-        }
-        
-        const { redirect_uris, client_name } = req.body || {};
-        
-        const clientId = `gtm_${generateCode(16)}`;
-        const clientSecret = generateCode(32);
-        
-        await storageSet(`client:${clientId}`, JSON.stringify({ 
-          clientSecret, 
-          redirectUris: redirect_uris, 
-          name: client_name 
-        }));
-        
-        return res.status(201).json({ client_id: clientId, client_secret: clientSecret });
-      }
-      
-      case 'mcp': {
-        if (req.method !== 'POST') {
-          return res.status(405).json({ error: 'Method not allowed' });
-        }
-        
-        const token = extractToken(req);
-        if (!token) {
-          return res.status(401).json(mcpError(null, -32600, 'Unauthorized'));
-        }
-        
-        const tokenData = await storageGet(`token:${token}`);
-        if (!tokenData) {
-          return res.status(401).json(mcpError(null, -32600, 'Invalid token'));
-        }
-        
-        const { accessToken } = JSON.parse(tokenData);
-        const result = await handleMcpRequest(req.body, accessToken);
-        return res.json(result);
-      }
-      
-      case 'sse': {
-        const token = extractToken(req);
-        if (!token) {
-          return res.status(401).json({ error: 'Unauthorized' });
-        }
-        
-        // SSE is limited on Vercel - return info message
-        return res.json({ 
+      case 'sse':
+        return res.status(200).json({ 
           message: 'SSE endpoint - Use /mcp for HTTP transport instead',
           note: 'Vercel serverless functions have timeout limits that make SSE impractical'
         });
-      }
       
       default:
-        return res.status(404).json({ error: 'Not found' });
+        return res.status(404).json({ error: 'Not found', path });
     }
   } catch (error: any) {
     console.error('API Error:', error);
-    return res.status(500).json({ error: 'Internal server error', message: error.message });
+    return res.status(500).json({ 
+      error: 'Internal server error', 
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 }
